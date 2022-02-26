@@ -49,7 +49,7 @@ ENV JETTY_JAVA_ARGS="jetty.home=$JETTY_HOME \
     -Djetty.sslContext.keyStorePassword=$JETTY_KEYSTORE_PASSWORD \
     -Djetty.sslContext.keyStorePath=$JETTY_KEYSTORE_PATH"
 
-RUN apk --no-cache add patch openjdk11-jre-headless
+RUN apk --no-cache add bash patch openjdk11-jre-headless
 
 COPY bin/ /usr/local/bin/
 
@@ -61,14 +61,19 @@ COPY /opt/ /opt/
 ADD shibboleth-idp/ /opt/shibboleth-idp/
 
 # Shibbolethの設定ファイル(attribute-resolverなど)にパッチを当てるスクリプトをコンテナにコピーする。
-COPY bin/mod-idp-conf.sh /usr/local/bin/
+#COPY bin/mod-idp-conf.sh /usr/local/bin/
 
 # Shibbolethの設定ファイル(attribute-resolverなど)に当てるパッチをコンテナにコピーする。
-RUN mkdir /tmp/patch
-COPY patch/* /tmp/patch/
+COPY patch/ /tmp/patch/
 
 # Shibbolethの設定ファイル(attribute-resolverなど)にパッチを当てるスクリプトを実行する。
-RUN /bin/sh /usr/local/bin/mod-idp-conf.sh
+#RUN /bin/sh /usr/local/bin/mod-idp-conf.sh
+
+RUN cp /opt/shibboleth-idp/conf/attribute-resolver-ldap.xml /opt/shibboleth-idp/conf/attribute-resolver.xml && \
+    cd /opt/shibboleth-idp && \
+    for file in /tmp/patch/*.patch; do patch -b -p0 < $file; done && \
+    sed -i -e s/validUntil=\"[^\"\]*\"/validUntil=\"2030-01-01T00:00:00\.999Z\"/ /opt/shibboleth-idp/metadata/idp-metadata.xml
+
 
 CMD $JAVA_HOME/bin/java -jar $JETTY_HOME/start.jar $JETTY_JAVA_ARGS
 
