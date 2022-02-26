@@ -9,7 +9,7 @@ ENV PATH=$PATH:$JAVA_HOME/bin
 
 LABEL maintainer="Noriyuki TAKEI"
 
-RUN apk --no-cache add curl tar bash openjdk11-jre-headless
+RUN apk --no-cache add curl tar openjdk11-jre-headless
 
 # Jettyをダウンロードする。
 RUN curl -O https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-distribution/$JETTY_VERSION/jetty-distribution-$JETTY_VERSION.tar.gz \
@@ -28,13 +28,16 @@ COPY opt/jetty-base/webapps/idp.xml $JETTY_BASE/webapps/idp.xml
 
 FROM alpine:latest
 
+ENV JETTY_HOME=/opt/jetty-home
+ENV JETTY_BASE=/opt/jetty-base
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+
 ENV IDP_VERSION=4.1.5
 ENV IDP_HASH=8173a2f5e05ec75e7b6ccbbab45639decb3286ecd705f1350a75a2b551096596
 
 ENV JETTY_KEYSTORE_PASSWORD=storepwd
 ENV JETTY_KEYSTORE_PATH=etc/keystore
 ENV IDP_HOME=/opt/shibboleth-idp
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm
 ENV IDP_SRC=/opt/shibboleth-identity-provider-$IDP_VERSION
 ENV IDP_SCOPE=example.org
 ENV IDP_HOST_NAME=idp.example.org
@@ -46,7 +49,7 @@ ENV JETTY_JAVA_ARGS="jetty.home=$JETTY_HOME \
     -Djetty.sslContext.keyStorePassword=$JETTY_KEYSTORE_PASSWORD \
     -Djetty.sslContext.keyStorePath=$JETTY_KEYSTORE_PATH"
 
-RUN apk --no-cache add patch
+RUN apk --no-cache add patch openjdk11-jre-headless
 
 COPY bin/ /usr/local/bin/
 
@@ -54,14 +57,6 @@ RUN chmod +x /usr/local/bin/gen-idp-conf.sh
 
 COPY --from=tmp /opt/ /opt/
 COPY /opt/ /opt/
-
-# Jettyを起動する。
-#CMD $JAVA_HOME/bin/java -jar $JETTY_HOME/start.jar $JETTY_JAVA_ARGS
-
-#FROM noriyukitakei/dockerized-shibboleth-idp4:latest
-
-# SSHログインのパスワードを定義する。
-#ENV SSH_PASSWD "root:Docker!"
 
 ADD shibboleth-idp/ /opt/shibboleth-idp/
 
@@ -75,17 +70,6 @@ COPY patch/* /tmp/patch/
 # Shibbolethの設定ファイル(attribute-resolverなど)にパッチを当てるスクリプトを実行する。
 RUN /bin/sh /usr/local/bin/mod-idp-conf.sh
 
-# OpenSSHをインストールする。
-#RUN apk add openssh && \
-#    ssh-keygen -A && \
-#    sed -i -e 's/#Port 22/Port 2222/' /etc/ssh/sshd_config && \
-#    sed -i -e 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-
-# 起動スクリプトをコンテナにコピーする。
-COPY bin/init.sh /usr/local/bin/init.sh
-
-RUN chmod +x /usr/local/bin/init.sh
-
-CMD ["/usr/local/bin/init.sh"]
+CMD $JAVA_HOME/bin/java -jar $JETTY_HOME/start.jar $JETTY_JAVA_ARGS
 
 EXPOSE 8080 8443 2222
