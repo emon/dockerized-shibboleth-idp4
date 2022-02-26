@@ -5,7 +5,7 @@ cp /opt/shibboleth-idp/conf/attribute-resolver-ldap.xml /opt/shibboleth-idp/conf
 
 cd /opt/shibboleth-idp
 
-for file in `\find /tmp/patch -maxdepth 1 -type f`; do
+for file in /tmp/patch/*.patch; do
     patch -b -p0 < $file
 done
 
